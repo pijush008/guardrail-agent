@@ -259,12 +259,24 @@ def test_metrics_aggregate(client):
     assert "guardrails" in body and "approvals" in body
 
 
-def test_ci_status_mock(client):
+def test_ci_status_mock(client, monkeypatch):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     r = client.get("/api/v1/ci/status")
     assert r.status_code == 200
     body = r.json()
     assert body["integration"] == "mock"
     assert "not configured" in body["message"]
+
+
+def test_ci_status_github(client, monkeypatch):
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_RUN_ID", "42")
+    r = client.get("/api/v1/ci/status")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["integration"] == "github"
+    assert body["run_id"] == "42"
 
 
 def test_guardrail_events_endpoint(client):
