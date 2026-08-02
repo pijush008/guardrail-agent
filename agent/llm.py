@@ -32,10 +32,17 @@ class LLMError(RuntimeError):
 class LLMClient:
     def __init__(self, settings=None):
         self.settings = settings or get_settings()
-        self._client = OpenAI(
-            api_key=self.settings.api_key or "unused",
-            base_url=self.settings.base_url,
-        )
+        self._fake = None
+        if self.settings.fake_llm:
+            # Deterministic offline mode: no API key required. Used by the
+            # service demo mode and by CI so the eval suite is reproducible.
+            from .fake_llm import FakeLLM
+            self._fake = FakeLLM()
+        else:
+            self._client = OpenAI(
+                api_key=self.settings.api_key or "unused",
+                base_url=self.settings.base_url,
+            )
         self.usage = LLMUsage()
 
     def chat(
@@ -47,6 +54,10 @@ class LLMClient:
         json_mode: bool = False,
     ) -> tuple[str, LLMUsage]:
         """Return (text, usage). Raises LLMError on transport failure."""
+        if self._fake is not None:
+            text, _ = self._fake.chat(system, user, max_tokens=max_tokens,
+                                      temperature=temperature, json_mode=json_mode)
+            return text, LLMUsage(prompt_tokens=0, completion_tokens=0)
         t0 = time.perf_counter()
         kwargs = {}
         if json_mode:

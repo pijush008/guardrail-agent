@@ -20,9 +20,9 @@ suite wired into **CI** and a **Next.js dashboard** to watch it all happen.
 
 | Metric | Badge |
 | --- | --- |
-| CI pipeline | `![eval](https://github.com/<ORG>/<REPO>/actions/workflows/eval.yml/badge.svg)` |
+| CI pipeline | `![eval](https://github.com/pijush008/guardrail-agent/actions/workflows/eval.yml/badge.svg)` |
 | Latest eval pass rate (service-hosted) | `![eval pass rate](https://img.shields.io/endpoint?url=<SERVICE_URL>/api/v1/metrics/badge)` |
-| Latest eval pass rate (results branch) | `![eval pass rate](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<ORG>/<REPO>/results/badge.json)` |
+| Latest eval pass rate (results branch) | `![eval pass rate](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/pijush008/guardrail-agent/results/badge.json)` |
 
 `scripts/publish_badge.py` regenerates `results/badge.json` + `results/README.md`
 after every CI run (the `publish-badge` job commits them to the `results` branch).

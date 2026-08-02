@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -49,7 +50,11 @@ def main() -> int:
     badge_path = out_dir / "badge.json"
     badge_path.write_text(json.dumps(badge))
 
-    raw_url = "https://raw.githubusercontent.com/<ORG>/<REPO>/results/badge.json"
+    owner_repo = os.getenv("GUARDRAIL_BADGE_OWNER_REPO", "pijush008/guardrail-agent")
+    raw_url = (
+        "https://raw.githubusercontent.com/"
+        f"{owner_repo}/results/badge.json"
+    )
     readme_path.write_text(
         f"# Latest eval results\n\n"
         f"Pass rate: **{rate:.1f}%** ({summary.get('passed', 0)}/{n} cases)\n\n"

@@ -92,6 +92,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.limit:
         cases = cases[: args.limit]
 
+    from agent.config import get_settings as _get_settings
+    settings = _get_settings()
+    if not settings.api_key and not settings.fake_llm:
+        print("SKIPPED: no LLM API key configured. Set GROQ_API_KEY / "
+              "OPENAI_API_KEY, or GUARDRAIL_FAKE_LLM=1 for deterministic "
+              "offline mode, then rerun.")
+        return 0
+
     llm = LLMClient()
     agent = GuardrailAgent(registry=build_default_registry(), llm=llm)
     grader = Grader(llm, use_llm_judge=args.llm_judge)
@@ -114,6 +122,7 @@ def main(argv: list[str] | None = None) -> int:
               f"lat={row.get('latency_ms', 0):7.0f}ms tok={row.get('tokens', 0):5d}{why}")
 
     summary = collector.summarize()
+    summary["model"] = "fake-llm" if settings.fake_llm else settings.model
     rows_path = collector.save_rows()
     summ_path = collector.save_summary()
     _write_dashboard(summary, args.outdir)

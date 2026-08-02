@@ -56,6 +56,9 @@ class Settings:
     # ---- Misc ----
     no_tools: bool = _env_bool("GUARDRAIL_NO_TOOLS", False)
 
+    # ---- Deterministic offline mode (no API key needed) ----
+    fake_llm: bool = _env_bool("GUARDRAIL_FAKE_LLM", False)
+
 
 _settings = Settings()
 

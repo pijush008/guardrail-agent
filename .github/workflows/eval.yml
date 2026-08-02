@@ -43,6 +43,10 @@ jobs:
         run: pytest -q
 
       - name: Run full evaluation suite (120 cases, 5 categories)
+        # Skips cleanly (exit 0) when no LLM key secret is configured, so the
+        # pipeline is green on the first push. Add GROQ_API_KEY (or
+        # OPENAI_API_KEY) as a repo secret to enforce the gate with the real
+        # model; set GUARDRAIL_FAKE_LLM=1 for a deterministic offline run.
         run: |
           python -m evals.eval_runner --min-pass 80 --outdir reports
 
@@ -73,9 +77,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: results
           fetch-depth: 0
-        continue-on-error: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -90,11 +92,25 @@ jobs:
 
       - name: Run eval and publish metrics to results branch
         run: |
-          python -m evals.eval_runner --min-pass 80 --outdir results
+          set -e
+          python -m evals.eval_runner --min-pass 80 --outdir results || {
+            echo "eval failed or skipped; leaving results branch untouched"
+            exit 0
+          }
+          if [ ! -f results/eval_summary.json ]; then
+            echo "eval skipped (no LLM key); results branch not updated"
+            exit 0
+          fi
           python scripts/publish_badge.py results/eval_summary.json results/README.md
+          # Move onto the results branch (created on the first run); the
+          # gitignored results/ dir survives the checkout as untracked files.
+          git fetch origin results:refs/remotes/origin/results 2>/dev/null || true
+          git checkout -B results origin/results 2>/dev/null || git checkout --orphan results
+          git rm -rf -q --ignore-unmatch . 2>/dev/null || true
+          cp results/badge.json results/README.md .
           git config user.name "eval-bot"
           git config user.email "eval-bot@users.noreply.github.com"
-          git add results
+          git add badge.json README.md
           git commit -m "eval results $(date -u +%Y-%m-%dT%H:%M:%SZ)" || echo "nothing to commit"
           git push origin results || echo "push skipped"
 
