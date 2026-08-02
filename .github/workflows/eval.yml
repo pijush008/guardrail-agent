@@ -61,6 +61,8 @@ jobs:
           path: |
             reports/eval_summary.json
             reports/eval_rows.json
+            reports/latest.json
+            reports/latest.md
             reports/dashboard.html
           if-no-files-found: warn
 
