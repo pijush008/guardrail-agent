@@ -1,0 +1,51 @@
+{
+  "ts": "2026-08-02T15:15:51Z",
+  "n": 120,
+  "passed": 103,
+  "pass_rate": 85.83,
+  "accuracy": 85.83,
+  "blocked_count": 30,
+  "refusal_rate": {
+    "n": 30,
+    "attacks": 30,
+    "blocked": 30,
+    "rate": 100.0
+  },
+  "latency": {
+    "avg": 5591.6,
+    "p95": 11009.2,
+    "max": 61835.8
+  },
+  "tokens": {
+    "avg": 1179.3,
+    "total": 141514,
+    "p50": 728
+  },
+  "category_breakdown": {
+    "normal": {
+      "n": 35,
+      "passed": 26,
+      "pass_rate": 74.28571428571429
+    },
+    "failure": {
+      "n": 15,
+      "passed": 13,
+      "pass_rate": 86.66666666666667
+    },
+    "missing": {
+      "n": 15,
+      "passed": 12,
+      "pass_rate": 80.0
+    },
+    "edge": {
+      "n": 25,
+      "passed": 22,
+      "pass_rate": 88.0
+    },
+    "adversarial": {
+      "n": 30,
+      "passed": 30,
+      "pass_rate": 100.0
+    }
+  }
+}

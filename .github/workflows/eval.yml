@@ -1,0 +1,102 @@
+name: eval
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-eval:
+    runs-on: ubuntu-latest
+    env:
+      # LLM provider for the eval suite (Groq in this repo's default config).
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      # Persist results to Supabase when secrets are configured.
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      # Deterministic CI behavior: block attacks, redact PII, gate actions.
+      GUARDRAIL_AUTO_BLOCK: "1"
+      GUARDRAIL_REDACT: "1"
+      GUARDRAIL_AUTO_APPROVE: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Presidio NER model
+        run: python -m spacy download en_core_web_lg
+
+      - name: Run unit tests
+        run: pytest -q
+
+      - name: Run full evaluation suite (120 cases, 5 categories)
+        run: |
+          python -m evals.eval_runner --min-pass 80 --outdir reports
+
+      - name: Upload eval report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-reports
+          path: |
+            reports/eval_summary.json
+            reports/eval_rows.json
+            reports/dashboard.html
+          if-no-files-found: warn
+
+  publish-badge:
+    if: github.ref == 'refs/heads/main' && always()
+    needs: test-and-eval
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GUARDRAIL_AUTO_BLOCK: "1"
+      GUARDRAIL_REDACT: "1"
+      GUARDRAIL_AUTO_APPROVE: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: results
+          fetch-depth: 0
+        continue-on-error: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Presidio NER model
+        run: python -m spacy download en_core_web_lg
+
+      - name: Run eval and publish metrics to results branch
+        run: |
+          python -m evals.eval_runner --min-pass 80 --outdir results
+          python scripts/publish_badge.py results/eval_summary.json results/README.md
+          git config user.name "eval-bot"
+          git config user.email "eval-bot@users.noreply.github.com"
+          git add results
+          git commit -m "eval results $(date -u +%Y-%m-%dT%H:%M:%SZ)" || echo "nothing to commit"
+          git push origin results || echo "push skipped"
+
+      - name: Post status
+        run: echo "eval gate completed; see reports artifact / results branch"

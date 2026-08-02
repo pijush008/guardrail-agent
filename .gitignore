@@ -1,0 +1,27 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/
+reports/*.html
+
+# Node / Next.js
+web/node_modules/
+web/.next/
+web/out/
+web/.env.local
+web/next-env.d.ts
+
+# CI badge artifacts
+results/
+
+# Browser automation artifacts
+.playwright-mcp/
+
+# Env
+.env
+.env.local
+
+# OS
+.DS_Store
