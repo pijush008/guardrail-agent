@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from .config import get_settings
-from .models import ApprovalRecord, PlanStep
+from .models import ApprovalRecord, ApprovalStatus, PlanStep, PermissionStateError
 from .tools import action_catalog, execute_action
 
 
@@ -90,7 +90,8 @@ class ApprovalManager:
         self.records: list[ApprovalRecord] = []
 
     def request(self, plan: list[PlanStep]) -> ApprovalRecord:
-        rec = ApprovalRecord(plan=plan)
+        rec = ApprovalRecord(plan=plan,
+                             expires_at=time.time() + self.timeout)
         if self.decider:
             approved = self.decider(rec.id, "; ".join(s.action for s in plan))
             rec.finalize(approved, "test_decider")
@@ -103,20 +104,29 @@ class ApprovalManager:
         self.records.append(rec)
         return rec
 
-    def approve(self, token: str, approver: str = "human") -> ApprovalRecord:
-        rec = ApprovalRecord(plan=[])
+    def _get(self, token: str) -> ApprovalRecord:
         for r in self.records:
-            if r.id == token and r.approved is None:
-                r.finalize(True, approver)
+            if r.id == token:
+                if r.is_expired():
+                    r.expire(actor="expiry_sweep")
                 return r
-        raise PermissionDenied("unknown or already-decided token")
+        raise PermissionDenied("unknown approval token")
+
+    def approve(self, token: str, approver: str = "human") -> ApprovalRecord:
+        rec = self._get(token)
+        if rec.status != ApprovalStatus.PENDING.value:
+            raise PermissionDenied(
+                f"approval token already decided ({rec.status})")
+        rec.finalize(True, approver)
+        return rec
 
     def deny(self, token: str, approver: str = "human") -> ApprovalRecord:
-        for r in self.records:
-            if r.id == token and r.approved is None:
-                r.finalize(False, approver)
-                return r
-        raise PermissionDenied("unknown or already-decided token")
+        rec = self._get(token)
+        if rec.status != ApprovalStatus.PENDING.value:
+            raise PermissionDenied(
+                f"approval token already decided ({rec.status})")
+        rec.finalize(False, approver)
+        return rec
 
 
 class PermissionDenied(RuntimeError):
@@ -131,6 +141,9 @@ class PermissionLayer:
         self.approvals = approvals or ApprovalManager()
         self.sender = sender or ConfirmationSender()
         self.log: list[dict] = []
+        # Idempotency: every executed approval has a unique key; re-executing
+        # with a reused key is denied before any tool runs.
+        self._executed_keys: set[str] = set()
 
     def evaluate(self, tool: str, action: str, subject: str,
                  reason: str = "") -> RiskResult:
@@ -152,7 +165,40 @@ class PermissionLayer:
                           planned=plan, approval=approval, message=sent)
 
     def execute(self, tool: str, action: str, subject: str, approval: ApprovalRecord) -> str:
-        """Structurally-gated execution: requires a finalized approval."""
-        if approval is None or approval.approved is not True:
+        """Structurally-gated execution: requires a finalized approval.
+
+        Atomically verifies, before any tool runs:
+          * approval status is APPROVED
+          * approval has not expired
+          * the idempotency key has not already been used
+
+        The key is reserved BEFORE execution so a concurrent/duplicate call
+        cannot double-execute the same approval.
+        """
+        if approval is None:
             raise PermissionDenied("no approval on file — action blocked")
-        return execute_action(tool, action, subject)
+        if approval.idempotency_key in self._executed_keys:
+            raise PermissionDenied(
+                "action already executed — idempotency key reused")
+        if approval.status != ApprovalStatus.APPROVED.value:
+            raise PermissionDenied("no approval on file — action blocked")
+        if approval.is_expired():
+            approval.expire(actor="execution_gate")
+            raise PermissionDenied("approval expired before execution")
+        approval.transition(ApprovalStatus.EXECUTING.value, actor="execution_gate")
+        self._executed_keys.add(approval.idempotency_key)
+        try:
+            outcome = execute_action(tool, action, subject)
+        except PermissionDenied:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            approval.transition(ApprovalStatus.FAILED.value, actor="execution_gate")
+            approval.failure_reason = str(exc)
+            raise PermissionDenied(f"execution failed: {exc}") from exc
+        approval.transition(ApprovalStatus.EXECUTED.value, actor="execution_gate")
+        self.log.append({
+            "ts": time.time(), "tool": tool, "action": action, "subject": subject,
+            "token": approval.id, "idempotency_key": approval.idempotency_key,
+            "status": approval.status,
+        })
+        return outcome
