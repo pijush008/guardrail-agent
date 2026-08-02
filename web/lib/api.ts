@@ -4,9 +4,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = PYTHON_SERVICE_URL.replace(/\/$/, "") + path;
   const isForm = init?.body instanceof FormData;
   const res = await fetch(url, {
-    headers: isForm
-      ? undefined
-      : { "Content-Type": "application/json" },
+    headers: isForm ? undefined : { "Content-Type": "application/json" },
     ...init,
   });
   if (!res.ok) {
@@ -20,7 +18,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       typeof detail === "string"
         ? detail
         : Array.isArray(detail)
-          ? detail.map((d) => (d && typeof d === "object" && "msg" in d ? d.msg : String(d))).join("; ")
+          ? detail
+              .map((d) => (d && typeof d === "object" && "msg" in d ? d.msg : String(d)))
+              .join("; ")
           : JSON.stringify(detail)
     );
   }
@@ -142,15 +142,20 @@ export const api = {
     if (params?.limit) q.set("limit", String(params.limit));
     if (params?.min_pass) q.set("min_pass", String(params.min_pass));
     const qs = q.toString();
-    return request<{ gate_passed: boolean; exit_code: number; summary: Record<string, unknown> }>(
-      `/api/v1/evaluations/run${qs ? `?${qs}` : ""}`,
-      { method: "POST", body: JSON.stringify({}) }
-    );
+    return request<{
+      gate_passed: boolean;
+      exit_code: number;
+      summary: Record<string, unknown>;
+    }>(`/api/v1/evaluations/run${qs ? `?${qs}` : ""}`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
   },
 
   evalRuns: (limit = 50) => request<EvalRun[]>(`/api/v1/evaluations/runs?limit=${limit}`),
 
-  evalRunDetail: (id: string) => request<EvalRun & { cases?: unknown[] }>(`/api/v1/evaluations/runs/${id}`),
+  evalRunDetail: (id: string) =>
+    request<EvalRun & { cases?: unknown[] }>(`/api/v1/evaluations/runs/${id}`),
 
   guardrailEvents: (limit = 50) =>
     request<GuardrailEvents>(`/api/v1/guardrails/events?limit=${limit}`),
@@ -172,10 +177,13 @@ export const api = {
   pendingActions: () => request<PendingAction[]>("/api/v1/pending_actions"),
 
   decide: (id: string, status: "approved" | "denied", decidedBy: string) =>
-    request<{ status: string; outcome?: string }>(`/api/v1/pending_actions/${id}/decide`, {
-      method: "POST",
-      body: JSON.stringify({ status, decided_by: decidedBy }),
-    }),
+    request<{ status: string; outcome?: string }>(
+      `/api/v1/pending_actions/${id}/decide`,
+      {
+        method: "POST",
+        body: JSON.stringify({ status, decided_by: decidedBy }),
+      }
+    ),
 
   latestMetrics: () => request<EvalRun>("/api/v1/metrics/latest"),
   metricsHistory: (limit = 50) =>

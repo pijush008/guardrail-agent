@@ -26,15 +26,12 @@ export function Nav() {
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-black text-ink-950">
             GA
           </span>
-          <span className="font-semibold text-ink-200">
-            Guardrail Agent
-          </span>
+          <span className="font-semibold text-ink-200">Guardrail Agent</span>
         </Link>
         <nav className="flex flex-1 gap-1 text-sm">
           {LINKS.map((l) => {
             const active =
-              pathname === l.href ||
-              (l.href !== "/" && pathname.startsWith(l.href));
+              pathname === l.href || (l.href !== "/" && pathname.startsWith(l.href));
             return (
               <Link
                 key={l.href}

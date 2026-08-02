@@ -19,9 +19,7 @@ export function MetricCard({
           : "text-accent";
   return (
     <div className="rounded-xl border border-ink-700 bg-ink-900 p-4">
-      <div className="text-[11px] uppercase tracking-wider text-ink-400">
-        {label}
-      </div>
+      <div className="text-[11px] uppercase tracking-wider text-ink-400">{label}</div>
       <div className={`mt-1 text-3xl font-bold ${color}`}>{value}</div>
       {sub && <div className="mt-1 text-xs text-ink-400">{sub}</div>}
     </div>

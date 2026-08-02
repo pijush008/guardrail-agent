@@ -48,8 +48,7 @@ export default function RunsPage() {
               <div className="mt-1 flex items-center justify-between text-xs text-ink-400">
                 <span>{r.created_at ? new Date(r.created_at).toLocaleString() : ""}</span>
                 <span>
-                  {r.citations?.length ?? 0} citations ·{" "}
-                  {r.evidence_count ?? 0} evidence
+                  {r.citations?.length ?? 0} citations · {r.evidence_count ?? 0} evidence
                 </span>
               </div>
             </button>
@@ -63,8 +62,7 @@ export default function RunsPage() {
         </div>
         {!selected ? (
           <div className="px-4 py-8 text-center text-sm text-ink-400">
-            Select a run to see its 13-stage pipeline trace, citations and
-            evidence.
+            Select a run to see its 13-stage pipeline trace, citations and evidence.
           </div>
         ) : (
           <div className="max-h-[32rem] overflow-y-auto p-4">
@@ -77,7 +75,9 @@ export default function RunsPage() {
                     key={i}
                     className="flex items-center gap-2 rounded-lg bg-ink-800/40 px-3 py-1.5 text-xs"
                   >
-                    <span className="font-mono text-ink-500">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="font-mono text-ink-500">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                         s.status === "ok"

@@ -73,8 +73,8 @@ export default function EvaluationsPage() {
         <div>
           <h1 className="text-2xl font-bold text-ink-200">Evaluations</h1>
           <p className="mt-1 text-sm text-ink-400">
-            {cases.length} curated cases across adversarial, edge, failure and
-            permission categories — run them as a pass/fail gate.
+            {cases.length} curated cases across adversarial, edge, failure and permission
+            categories — run them as a pass/fail gate.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -117,9 +117,7 @@ export default function EvaluationsPage() {
                 : "border-ink-700 bg-ink-900 hover:border-ink-600"
             }`}
           >
-            <div className="text-[11px] uppercase tracking-wider text-ink-400">
-              {cat}
-            </div>
+            <div className="text-[11px] uppercase tracking-wider text-ink-400">{cat}</div>
             <div className="mt-1 text-2xl font-bold text-ink-200">{total}</div>
             <div className="text-xs text-ink-400">
               {attack} adversarial / {total - attack} benign
@@ -160,7 +158,10 @@ export default function EvaluationsPage() {
           </div>
           <div className="divide-y divide-ink-700/60">
             {runs.map((r, i) => (
-              <div key={r.id ?? i} className="flex items-center justify-between px-4 py-2.5 text-sm">
+              <div
+                key={r.id ?? i}
+                className="flex items-center justify-between px-4 py-2.5 text-sm"
+              >
                 <span className="text-xs text-ink-400">
                   {r.created_at ? new Date(r.created_at).toLocaleString() : ""}
                 </span>

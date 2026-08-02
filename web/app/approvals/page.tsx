@@ -23,7 +23,9 @@ function StatusPill({ status }: { status: string }) {
     denied: "bg-bad/15 text-bad",
   };
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${map[status] || ""}`}>
+    <span
+      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${map[status] || ""}`}
+    >
       {status}
     </span>
   );
@@ -84,7 +86,11 @@ export default function ApprovalsPage() {
     setBusyId(action.id);
     setError(null);
     try {
-      const out = await api.decide(action.id, status, user?.email ?? user?.id ?? "unknown");
+      const out = await api.decide(
+        action.id,
+        status,
+        user?.email ?? user?.id ?? "unknown"
+      );
       if (out.status === "approved" && out.outcome) {
         // surface the executed-action outcome in the row
       }
@@ -101,8 +107,8 @@ export default function ApprovalsPage() {
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-bold text-ink-200">Approvals</h1>
       <p className="mt-1 text-sm text-ink-400">
-        High-stakes actions proposed by the agent never execute until an
-        approver approves them here
+        High-stakes actions proposed by the agent never execute until an approver approves
+        them here
         {SUPABASE_CONFIGURED ? " — updates arrive in realtime" : " (polling mode)"}.
       </p>
 
@@ -115,18 +121,20 @@ export default function ApprovalsPage() {
       <div className="mt-6 space-y-3">
         {rows.length === 0 && (
           <div className="rounded-xl border border-ink-700 bg-ink-900 p-6 text-center text-sm text-ink-400">
-            No pending actions. Ask the agent to do something high-stakes —
-            e.g. “Send a reminder email to finance” — to see it appear here.
+            No pending actions. Ask the agent to do something high-stakes — e.g. “Send a
+            reminder email to finance” — to see it appear here.
           </div>
         )}
         {rows.map((r) => {
           const plan = parsePlan(r.plan);
-          const steps = (plan.plan as Array<{ action?: string; subject?: string; rationale?: string }>) || [];
+          const steps =
+            (plan.plan as Array<{
+              action?: string;
+              subject?: string;
+              rationale?: string;
+            }>) || [];
           return (
-            <div
-              key={r.id}
-              className="rounded-xl border border-ink-700 bg-ink-900 p-4"
-            >
+            <div key={r.id} className="rounded-xl border border-ink-700 bg-ink-900 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-xs text-ink-400">
                   {r.created_at ? new Date(r.created_at).toLocaleString() : ""}

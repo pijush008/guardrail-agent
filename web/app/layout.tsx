@@ -9,11 +9,7 @@ export const metadata: Metadata = {
     "Evaluated guardrail agent: cited research answers, human-in-the-loop approvals, and eval metrics.",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body className="min-h-screen">

@@ -34,9 +34,7 @@ export default function ChatPage() {
       ...m,
       {
         role: "user",
-        content: file
-          ? `${question}\n\n📎 ${file.name}`
-          : question,
+        content: file ? `${question}\n\n📎 ${file.name}` : question,
       },
     ]);
     setInput("");
@@ -62,8 +60,8 @@ export default function ChatPage() {
     <div className="mx-auto flex h-[calc(100vh-7rem)] max-w-3xl flex-col">
       <h1 className="mb-1 text-2xl font-bold text-ink-200">Ask the guardrail agent</h1>
       <p className="mb-4 text-sm text-ink-400">
-        Answers cite the evidence they came from; every high-stakes action is
-        gated behind a human approval.
+        Answers cite the evidence they came from; every high-stakes action is gated behind
+        a human approval.
       </p>
 
       {messages.length === 0 && (
@@ -179,9 +177,7 @@ function MessageBubble({ message }: { message: Message }) {
               </div>
             )}
             {message.meta.citation_errors.length > 0 && (
-              <div className="text-bad">
-                ✗ {message.meta.citation_errors.join("; ")}
-              </div>
+              <div className="text-bad">✗ {message.meta.citation_errors.join("; ")}</div>
             )}
             {message.meta.blocked && (
               <div className="rounded bg-bad/10 p-2 text-bad">

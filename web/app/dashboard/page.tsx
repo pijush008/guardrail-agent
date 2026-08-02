@@ -38,17 +38,15 @@ export default function DashboardPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="text-sm text-ink-400">Loading latest eval metrics…</div>
-    );
+    return <div className="text-sm text-ink-400">Loading latest eval metrics…</div>;
   }
 
   if (error) {
     return (
       <div className="rounded-xl border border-bad/40 bg-bad/10 p-4 text-sm text-bad">
-        Could not load metrics: {error}. Start the Python service
-        (<code className="text-ink-300">uvicorn service.main:app</code>) and run the
-        eval suite (<code className="text-ink-300">python -m evals.eval_runner</code>).
+        Could not load metrics: {error}. Start the Python service (
+        <code className="text-ink-300">uvicorn service.main:app</code>) and run the eval
+        suite (<code className="text-ink-300">python -m evals.eval_runner</code>).
       </div>
     );
   }
@@ -72,9 +70,7 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold text-ink-200">Metrics dashboard</h1>
         <p className="mt-1 text-sm text-ink-400">
           Latest eval run{" "}
-          {latest.created_at
-            ? `· ${new Date(latest.created_at).toLocaleString()}`
-            : ""}
+          {latest.created_at ? `· ${new Date(latest.created_at).toLocaleString()}` : ""}
           {blocked
             ? ` · guardrail blocked ${blocked.blocked}/${blocked.total} recorded attempts`
             : ""}

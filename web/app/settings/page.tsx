@@ -28,8 +28,7 @@ export default function SettingsPage() {
       rows.push({ k: "Avg tokens", v: `${latest.avg_tokens}` });
   }
   const inj = metrics?.guardrails?.injection_attempts;
-  if (inj != null)
-    rows.push({ k: "Injection attempts recorded", v: `${inj}` });
+  if (inj != null) rows.push({ k: "Injection attempts recorded", v: `${inj}` });
   const pend = metrics?.approvals?.pending;
   if (pend != null) rows.push({ k: "Pending approvals", v: `${pend}` });
 
@@ -52,10 +51,7 @@ export default function SettingsPage() {
             </div>
           )}
           {rows.map((r) => (
-            <div
-              key={r.k}
-              className="flex items-center justify-between py-2 text-sm"
-            >
+            <div key={r.k} className="flex items-center justify-between py-2 text-sm">
               <span className="text-ink-400">{r.k}</span>
               <span className="font-mono text-ink-200">{r.v}</span>
             </div>
@@ -69,8 +65,7 @@ export default function SettingsPage() {
           <div className="flex justify-between">
             <dt className="text-ink-400">LLM provider</dt>
             <dd className="font-mono text-ink-200">
-              Groq / OpenAI via <code>GROQ_API_KEY</code> or{" "}
-              <code>OPENAI_API_KEY</code>
+              Groq / OpenAI via <code>GROQ_API_KEY</code> or <code>OPENAI_API_KEY</code>
             </dd>
           </div>
           <div className="flex justify-between">
@@ -96,16 +91,15 @@ export default function SettingsPage() {
         <h2 className="text-sm font-semibold text-ink-200">Next steps</h2>
         <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-ink-400">
           <li>
-            Add an LLM API key to GitHub Secrets to make CI enforce the 80%
-            pass-rate gate.
+            Add an LLM API key to GitHub Secrets to make CI enforce the 80% pass-rate
+            gate.
           </li>
           <li>
             Wire <code>NEXT_PUBLIC_SUPABASE_URL</code> /{" "}
             <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> for realtime approvals.
           </li>
           <li>
-            Point <code>PYTHON_SERVICE_URL</code> at your deployed FastAPI
-            service.
+            Point <code>PYTHON_SERVICE_URL</code> at your deployed FastAPI service.
           </li>
         </ul>
       </section>

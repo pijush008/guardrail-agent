@@ -63,9 +63,8 @@ export default function LoginPage() {
         {msg && <div className="mt-3 text-sm text-bad">{msg}</div>}
         {!SUPABASE_CONFIGURED && (
           <div className="mt-4 rounded-lg border border-warn/40 bg-warn/10 p-3 text-xs text-warn">
-            Supabase not configured — running in demo mode. Set
-            NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY to enforce
-            real auth.
+            Supabase not configured — running in demo mode. Set NEXT_PUBLIC_SUPABASE_URL /
+            NEXT_PUBLIC_SUPABASE_ANON_KEY to enforce real auth.
           </div>
         )}
       </div>

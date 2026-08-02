@@ -47,9 +47,9 @@ export default function CiPage() {
           </div>
           <p className="mt-2">{ci.message}</p>
           <p className="mt-3 text-xs text-ink-500">
-            This page shows a live GitHub Actions status when the service runs
-            inside CI (the <code className="text-ink-400">GITHUB_ACTIONS</code> env is
-            set). Locally it reports an honest mock instead.
+            This page shows a live GitHub Actions status when the service runs inside CI
+            (the <code className="text-ink-400">GITHUB_ACTIONS</code> env is set). Locally
+            it reports an honest mock instead.
           </p>
         </div>
       )}
