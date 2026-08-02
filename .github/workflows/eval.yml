@@ -34,21 +34,18 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt ruff
 
       - name: Install Presidio NER model
         run: python -m spacy download en_core_web_lg
 
+      - name: Lint backend
+        run: ruff check .
+
       - name: Run unit tests
         run: pytest -q
 
-      - name: Build Next.js web surface
-        run: |
-          cd web
-          npm ci
-          npm run build
-
-      - name: Run full evaluation suite (120 cases, 5 categories)
+      - name: Run full evaluation suite (145 cases, 7 categories)
         # Skips cleanly (exit 0) when no LLM key secret is configured, so the
         # pipeline is green on the first push. Add GROQ_API_KEY (or
         # OPENAI_API_KEY) as a repo secret to enforce the gate with the real
@@ -67,9 +64,40 @@ jobs:
             reports/dashboard.html
           if-no-files-found: warn
 
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
   publish-badge:
     if: github.ref == 'refs/heads/main' && always()
-    needs: test-and-eval
+    needs: [test-and-eval, frontend]
     runs-on: ubuntu-latest
     permissions:
       contents: write

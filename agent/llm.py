@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 from openai import OpenAI
 
@@ -50,7 +49,7 @@ class LLMClient:
         system: str,
         user: str,
         max_tokens: int = 1024,
-        temperature: Optional[float] = None,
+        temperature: float | None = None,
         json_mode: bool = False,
     ) -> tuple[str, LLMUsage]:
         """Return (text, usage). Raises LLMError on transport failure."""
@@ -71,7 +70,7 @@ class LLMClient:
                 temperature=self.settings.temperature if temperature is None else temperature,
                 **kwargs,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise LLMError(f"LLM call failed: {exc}") from exc
 
         dm = resp.usage

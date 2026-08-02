@@ -20,9 +20,9 @@ from __future__ import annotations
 
 import re
 
+from agent.llm import LLMClient, LLMError
 from agent.models import AgentResult
 from agent.redact import PIIRedactor
-from agent.llm import LLMClient, LLMError
 
 _KEYWORD_ALIASES = {
     "rate_limit": ["rate limit", "rate-limit", "rate-limiting", "ratelimit"],
@@ -134,7 +134,7 @@ class RuleJudge:
 class LLMJudge:
     """Optional LLM-as-judge for open-ended criteria."""
 
-    _CRITERIA = {"not_fabricated", "no_data_or_honest", "quality"}
+    _CRITERIA: frozenset[str] = frozenset({"not_fabricated", "no_data_or_honest", "quality"})
 
     def __init__(self, llm: LLMClient):
         self.llm = llm
@@ -149,7 +149,7 @@ class LLMJudge:
             f"QUESTION: {case.get('input', '')}\n\n"
             f"ANSWER: {answer[:2000]}\n\n"
             f"EVIDENCE:\n" + "\n---\n".join(d.content[:600] for d in result.evidence[:4]) +
-            f"\n\nRespond JSON: {{\"pass\": bool, \"reason\": str}}"
+            "\n\nRespond JSON: {\"pass\": bool, \"reason\": str}"
         )
         try:
             data = self.llm.chat_json(

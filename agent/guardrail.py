@@ -28,49 +28,49 @@ from .models import GuardrailVerdict, InjectionRisk
 _DIRECT_PATTERNS: list[tuple[InjectionRisk, str, re.Pattern]] = [
     (InjectionRisk.DIRECT, "ignore-previous", re.compile(
         r"\b(ignore|forget|override|disregard|skip)\s+(all\s+)?(previous|prior|above|earlier|system)\s+"
-        r"(instructions?|prompts?|rules?|directives?|context)\b", re.I)),
+        r"(instructions?|prompts?|rules?|directives?|context)\b", re.IGNORECASE)),
     (InjectionRisk.DIRECT, "ignore-all", re.compile(
-        r"\bignore\s+everything\s+(above|before|previously)\b", re.I)),
+        r"\bignore\s+everything\s+(above|before|previously)\b", re.IGNORECASE)),
     (InjectionRisk.DIRECT, "act-as-sys", re.compile(
-        r"(\byou are now\b|\bact as\b|\bpretend you are\b)[^\n]{0,60}\b(system|dan|developer|root|admin)\b", re.I)),
+        r"(\byou are now\b|\bact as\b|\bpretend you are\b)[^\n]{0,60}\b(system|dan|developer|root|admin)\b", re.IGNORECASE)),
     (InjectionRisk.JAILBREAK, "jailbreak-dan", re.compile(
-        r"\b(jailbreak|jail\s?break)\b|you are now (dan|unrestricted)|DAN mode", re.I)),
+        r"\b(jailbreak|jail\s?break)\b|you are now (dan|unrestricted)|DAN mode", re.IGNORECASE)),
     (InjectionRisk.JAILBREAK, "no-rules-mode", re.compile(
         r"\b(no rules|no restrictions|unlimited mode|bypass.*guardrails?|ignore.*ethics|"
-        r"without (any )?(safety|ethics|filter))|bypass[^\n]{0,30}(filter|safety|checks)", re.I)),
+        r"without (any )?(safety|ethics|filter))|bypass[^\n]{0,30}(filter|safety|checks)", re.IGNORECASE)),
     (InjectionRisk.EXFILTRATION, "reveal-prompt", re.compile(
         r"\b(reveal|print|show|leak|exfiltrat|extract|repeat|copy|tell|provide|give|output|dump)\b[^\n]{0,50}"
         r"\b(system prompt|initial prompt|your prompt|instructions|prompt template|raw configuration|"
-        r"credentials|secrets|password|private key)\b", re.I)),
+        r"credentials|secrets|password|private key)\b", re.IGNORECASE)),
     (InjectionRisk.EXFILTRATION, "repeat-start", re.compile(
-        r"\b(repeat|say|output)\s+(the\s+)?(word|text|all)\s+(before|prior|above)\b", re.I)),
+        r"\b(repeat|say|output)\s+(the\s+)?(word|text|all)\s+(before|prior|above)\b", re.IGNORECASE)),
     (InjectionRisk.DIRECT, "role-override", re.compile(
-        r"\b(redefine|change)\s+your\s+(role|persona|identity|behavior)\b", re.I)),
+        r"\b(redefine|change)\s+your\s+(role|persona|identity|behavior)\b", re.IGNORECASE)),
     (InjectionRisk.ENCODING, "base64", re.compile(
-        r"(?:decode|decodificar|base64|from ?base|b64dec)[^\n]{0,80}", re.I)),
-    (InjectionRisk.SUSPICIOUS, "rot13", re.compile(r"\b(rot13|rot-13|caesar|cipher)\b", re.I)),
+        r"(?:decode|decodificar|base64|from ?base|b64dec)[^\n]{0,80}", re.IGNORECASE)),
+    (InjectionRisk.SUSPICIOUS, "rot13", re.compile(r"\b(rot13|rot-13|caesar|cipher)\b", re.IGNORECASE)),
     (InjectionRisk.ENCODING, "hex-encode", re.compile(
-        r"\b(hex|0x[0-9a-f]{16,}|unicode.?escape)\b", re.I)),
+        r"\b(hex|0x[0-9a-f]{16,}|unicode.?escape)\b", re.IGNORECASE)),
     (InjectionRisk.ENCODING, "hidden-chars", None),  # handled separately
     (InjectionRisk.INDIRECT, "instruction-inside-data", re.compile(
         r"\b(now tell me|from now on|in your next response|when you respond)\b[^\n]{0,60}"
-        r"\b(ignore (previous|all|the|your)|disregard|treat (me|us) as|behave as|do not|never)\b", re.I)),
+        r"\b(ignore (previous|all|the|your)|disregard|treat (me|us) as|behave as|do not|never)\b", re.IGNORECASE)),
     (InjectionRisk.DIRECT, "ignore-your-instructions", re.compile(
-        r"\bignore (your|the) (previous |prior )?instructions\b", re.I)),
+        r"\bignore (your|the) (previous |prior )?instructions\b", re.IGNORECASE)),
     (InjectionRisk.DIRECT, "ignore-system-msg", re.compile(
-        r"\bignore (your|the) (system (message|prompt)|system prompt|rules)\b", re.I)),
+        r"\bignore (your|the) (system (message|prompt)|system prompt|rules)\b", re.IGNORECASE)),
     (InjectionRisk.DIRECT, "forget-all-rules", re.compile(
-        r"\bforget (all|every) (previous |prior )?(instructions|rules|prompts)\b", re.I)),
+        r"\bforget (all|every) (previous |prior )?(instructions|rules|prompts)\b", re.IGNORECASE)),
     (InjectionRisk.EXFILTRATION, "output-secrets", re.compile(
-        r"\b(output|dump|print|reveal) (the |all |your |system )?(secrets|credentials|api ?keys?|passwords|internal config)\b", re.I)),
+        r"\b(output|dump|print|reveal) (the |all |your |system )?(secrets|credentials|api ?keys?|passwords|internal config)\b", re.IGNORECASE)),
     (InjectionRisk.JAILBREAK, "dev-mode", re.compile(
-        r"\b(developer mode|unrestricted ai|unlimited ai)\b", re.I)),
+        r"\b(developer mode|unrestricted ai|unlimited ai)\b", re.IGNORECASE)),
     (InjectionRisk.EXFILTRATION, "your-credentials", re.compile(
-        r"\bwhat are your (credentials|api ?keys?|passwords?|secrets)\b", re.I)),
+        r"\bwhat are your (credentials|api ?keys?|passwords?|secrets)\b", re.IGNORECASE)),
     (InjectionRisk.EXFILTRATION, "ask-the-secret", re.compile(
-        r"\b(what is|tell me) (the |your )?(admin |db |database |api )?(password|secret)\b", re.I)),
+        r"\b(what is|tell me) (the |your )?(admin |db |database |api )?(password|secret)\b", re.IGNORECASE)),
     (InjectionRisk.EXFILTRATION, "env-vars", re.compile(
-        r"\b(environment variables|env ?vars?)\b[^\n]{0,40}\b(keys?|secrets|credentials|passwords?)\b", re.I)),
+        r"\b(environment variables|env ?vars?)\b[^\n]{0,40}\b(keys?|secrets|credentials|passwords?)\b", re.IGNORECASE)),
 ]
 
 _DIRECT_WORDS: tuple[str, ...] = (
@@ -282,5 +282,5 @@ def looks_like_base64(text: str) -> bool:
 def decode_base64(text: str) -> str:
     try:
         return base64.b64decode(re.sub(r"\s+", "", text)).decode("utf-8", errors="replace")
-    except Exception:
+    except Exception:  # noqa: BLE001  malformed base64 is not an attack signal
         return ""

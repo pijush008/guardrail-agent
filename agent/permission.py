@@ -16,11 +16,11 @@ so the eval suite can exercise the full path deterministically.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 from .config import get_settings
-from .models import ApprovalRecord, ApprovalStatus, PlanStep, PermissionStateError
+from .models import ApprovalRecord, ApprovalStatus, PlanStep
 from .tools import action_catalog, execute_action
 
 
@@ -191,7 +191,7 @@ class PermissionLayer:
             outcome = execute_action(tool, action, subject)
         except PermissionDenied:
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             approval.transition(ApprovalStatus.FAILED.value, actor="execution_gate")
             approval.failure_reason = str(exc)
             raise PermissionDenied(f"execution failed: {exc}") from exc

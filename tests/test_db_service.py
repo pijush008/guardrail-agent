@@ -1,8 +1,6 @@
 """Tests for the persistence layer (LocalStore) and the FastAPI service."""
 from __future__ import annotations
 
-import os
-
 import pytest
 from fastapi.testclient import TestClient
 

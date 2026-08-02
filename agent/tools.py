@@ -12,8 +12,8 @@ tests against.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
-from typing import Callable
+from collections.abc import Callable
+from dataclasses import dataclass
 
 from .models import EvidenceDoc
 
@@ -283,7 +283,7 @@ _STOPWORDS = {
     "for", "are", "is", "was", "were", "be", "been", "do", "does", "did", "have",
     "has", "had", "to", "in", "on", "at", "by", "with", "from", "about", "and",
     "or", "not", "can", "could", "would", "should", "may", "might", "get", "me",
-    "i", "you", "we", "our", "please", "tell", "show", "me", "any", "all", "info",
+    "i", "you", "we", "our", "please", "tell", "show", "any", "all", "info",
     "information", "update", "updates", "latest", "related", "regarding", "concerning",
 }
 

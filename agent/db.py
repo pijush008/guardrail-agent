@@ -17,7 +17,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -47,13 +47,13 @@ class Store:
     def create_pending_action(self, payload: dict) -> str:
         raise NotImplementedError
 
-    def get_pending_action(self, row_id: str) -> Optional[dict]:
+    def get_pending_action(self, row_id: str) -> dict | None:
         raise NotImplementedError
 
     def decide_pending_action(self, row_id: str, status: str, decided_by: str) -> bool:
         raise NotImplementedError
 
-    def list_pending_actions(self, status: Optional[str] = None) -> list[dict]:
+    def list_pending_actions(self, status: str | None = None) -> list[dict]:
         raise NotImplementedError
 
     def log_injection_attempt(self, input_text: str, blocked: bool) -> None:
@@ -153,7 +153,7 @@ class SupabaseStore(Store):
         out = self._post("pending_actions", payload)
         return str(out[0]["id"])
 
-    def get_pending_action(self, row_id: str) -> Optional[dict]:
+    def get_pending_action(self, row_id: str) -> dict | None:
         rows = self._get("pending_actions", {"id": f"eq.{row_id}", "select": "*"})
         return rows[0] if rows else None
 
@@ -163,7 +163,7 @@ class SupabaseStore(Store):
         })
         return bool(out)
 
-    def list_pending_actions(self, status: Optional[str] = None) -> list[dict]:
+    def list_pending_actions(self, status: str | None = None) -> list[dict]:
         params: dict[str, Any] = {"select": "*", "order": "created_at.desc"}
         if status:
             params["status"] = f"eq.{status}"
@@ -271,7 +271,7 @@ class LocalStore(Store):
         self._persist("pending_actions")
         return row["id"]
 
-    def get_pending_action(self, row_id: str) -> Optional[dict]:
+    def get_pending_action(self, row_id: str) -> dict | None:
         for r in self._rows["pending_actions"]:
             if r["id"] == row_id:
                 return r
@@ -287,7 +287,7 @@ class LocalStore(Store):
                 return True
         return False
 
-    def list_pending_actions(self, status: Optional[str] = None) -> list[dict]:
+    def list_pending_actions(self, status: str | None = None) -> list[dict]:
         rows = sorted(self._rows["pending_actions"],
                       key=lambda r: r.get("created_at", ""), reverse=True)
         if status:

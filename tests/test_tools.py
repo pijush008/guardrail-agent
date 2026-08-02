@@ -1,16 +1,12 @@
 """Unit tests for the mock tool adapters and failure simulation."""
 import pytest
 
-from agent.models import EvidenceDoc
 from agent.tools import (
-    Tool,
     ToolAuthError,
     ToolError,
     ToolMalformed,
     ToolRateLimit,
-    ToolRegistry,
     ToolTimeout,
-    action_catalog,
     build_default_registry,
     execute_action,
     is_high_stakes,

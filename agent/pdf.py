@@ -37,7 +37,7 @@ def extract_pdf_text(
 
     try:
         reader = PdfReader(BytesIO(data))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise PdfExtractionError(f"could not parse PDF: {exc}") from exc
 
     if reader.is_encrypted:

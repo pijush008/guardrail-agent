@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import ClassVar
 
 from .config import get_settings
 from .models import EvidenceDoc
@@ -79,7 +80,6 @@ class PIIRedactor:
 
     def _mask(self, text: str) -> tuple[str, list[Redaction]]:
         found: list[Redaction] = []
-        repl = self.placeholder.format("PII")
 
         def _mk(kind_: str):
             def _f(m: re.Match) -> str:
@@ -111,7 +111,7 @@ class PIIRedactor:
 
         # Marker-prefixed names (e.g., "From: Maria Garcia")
         out = re.sub(
-            rf"\b(?:from:|to:|cc:|by|owner|assignee)\s+([A-Z][a-z]+ [A-Z][a-z]+)\b",
+            r"\b(?:from:|to:|cc:|by|owner|assignee)\s+([A-Z][a-z]+ [A-Z][a-z]+)\b",
             lambda m: m.group(0).split(m.group(1))[0] + self.placeholder.format("NAME"),
             out,
         )
@@ -146,8 +146,8 @@ default_redactor = PIIRedactor()
 # Optional Presidio-backed redactor (used when presidio is installed)
 # ---------------------------------------------------------------------------
 
-_presidio_analyzer: "object | None" = None
-_presidio_anonymizer: "object | None" = None
+_presidio_analyzer: object | None = None
+_presidio_anonymizer: object | None = None
 
 
 def _presidio_engines():
@@ -176,7 +176,7 @@ class PresidioPIIRedactor(PIIRedactor):
     # NER entity -> placeholder kind, plus a confidence floor. Everything else
     # (dates, locations, URLs, driver licenses, NRP) is handled by the
     # deterministic pass, which is far more precise on those.
-    _ENABLED = {
+    _ENABLED: ClassVar[dict[str, str]] = {
         "PERSON": "NAME",
         "EMAIL_ADDRESS": "EMAIL",
         "US_SSN": "SSN",

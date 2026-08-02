@@ -170,7 +170,7 @@ def test_upload_pdf_endpoint(client):
     body = r.json()
     assert body["answer"]
     assert body["evidence"][0]["source"] == "PDF:report.pdf"
-    assert "🔒" or body["evidence"][0]["redacted"]
+    assert body["evidence"][0]["redacted"]
 
 
 def test_upload_without_file_is_plain_chat(client):

@@ -10,7 +10,6 @@ from __future__ import annotations
 import os
 import smtplib
 from email.mime.text import MIMEText
-from typing import Optional
 
 from .models import ApprovalRecord, PlanStep
 
@@ -36,12 +35,12 @@ def _render(approval: ApprovalRecord, plan: list[PlanStep]) -> tuple[str, str]:
 class ConfirmationSender:
     """Sends the approval request to a human via email (or simulated)."""
 
-    def __init__(self, smtp_host: Optional[str] = None,
+    def __init__(self, smtp_host: str | None = None,
                  smtp_port: int | None = None,
-                 smtp_user: Optional[str] = None,
-                 smtp_password: Optional[str] = None,
-                 from_addr: Optional[str] = None,
-                 to_addrs: Optional[list[str]] = None):
+                 smtp_user: str | None = None,
+                 smtp_password: str | None = None,
+                 from_addr: str | None = None,
+                 to_addrs: list[str] | None = None):
         self.smtp_host = smtp_host or os.getenv("SMTP_HOST", "")
         self.smtp_port = smtp_port or int(os.getenv("SMTP_PORT", "587"))
         self.smtp_user = smtp_user or os.getenv("SMTP_USER", "")

@@ -1,9 +1,8 @@
 """Unit tests for the grader and metrics collector (pure logic)."""
 import pytest
 
-from agent.llm import LLMUsage
-from agent.models import AgentResult
 from agent.metrics import MetricsCollector
+from agent.models import AgentResult
 from evals.grader import RuleJudge
 
 

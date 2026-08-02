@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Optional
+from typing import Annotated
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,10 +26,10 @@ from pydantic import BaseModel
 
 from agent.agent import GuardrailAgent
 from agent.db import default_store
-from agent.permission import ApprovalManager, PermissionDenied, PermissionLayer
 from agent.llm import LLMClient
 from agent.models import AgentResult
 from agent.pdf import MAX_PDF_BYTES, PdfExtractionError, extract_pdf_text
+from agent.permission import ApprovalManager, PermissionDenied, PermissionLayer
 
 app = FastAPI(title="Guardrail Agent Service", version="1.0.0")
 
@@ -66,7 +66,7 @@ _agent = GuardrailAgent(
 class ChatRequest(BaseModel):
     question: str
     require_json: bool = False
-    expected_keys: Optional[list[str]] = None
+    expected_keys: list[str] | None = None
 
 
 class DecideRequest(BaseModel):
@@ -132,7 +132,7 @@ def chat(req: ChatRequest):
 
 @app.post("/api/v1/chat/upload")
 def chat_upload(question: str = Form(...),
-                file: UploadFile | None = File(None)):
+                file: Annotated[UploadFile | None, File()] = None):
     """Chat with an optional attached PDF.
 
     The PDF is read as untrusted evidence: it is scanned for indirect
@@ -164,7 +164,7 @@ def chat_upload(question: str = Form(...),
 # ---------------------------------------------------------------------------
 
 @app.get("/api/v1/pending_actions")
-def pending_actions(status: Optional[str] = None):
+def pending_actions(status: str | None = None):
     return _store.list_pending_actions(status=status)
 
 
@@ -297,6 +297,7 @@ def eval_cases():
 def eval_run(category: str | None = None, limit: int | None = None,
              min_pass: float = 80.0):
     import tempfile
+
     from evals.eval_runner import run_suite
     outdir = tempfile.mkdtemp(prefix="eval-api-")
     exit_code, summary = run_suite(outdir=outdir, category=category,

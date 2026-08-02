@@ -5,7 +5,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class PermissionStateError(RuntimeError):
@@ -61,7 +61,7 @@ class GuardrailVerdict:
     risk: InjectionRisk = InjectionRisk.NONE
     details: list[str] = field(default_factory=list)
     rules_flagged: list[str] = field(default_factory=list)
-    classifier_label: Optional[str] = None
+    classifier_label: str | None = None
 
 
 @dataclass
@@ -85,8 +85,8 @@ class SubQuestion:
 
     text: str
     tool: str
-    evidence: Optional[EvidenceDoc] = None
-    error: Optional[str] = None
+    evidence: EvidenceDoc | None = None
+    error: str | None = None
     started: float = field(default_factory=time.perf_counter)
     duration_ms: float = 0.0
 
@@ -118,13 +118,13 @@ class ApprovalRecord:
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     plan: list[PlanStep] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
-    decided_at: Optional[float] = None
-    approved: Optional[bool] = None
+    decided_at: float | None = None
+    approved: bool | None = None
     approver: str = ""
     status: str = ApprovalStatus.PENDING.value
     idempotency_key: str = field(default_factory=lambda: uuid.uuid4().hex)
     expires_at: float = 0.0
-    executed_at: Optional[float] = None
+    executed_at: float | None = None
     failure_reason: str = ""
     events: list[dict] = field(default_factory=list)
 
@@ -157,7 +157,7 @@ class ApprovalRecord:
             actor=approver,
         )
 
-    def is_expired(self, now: Optional[float] = None) -> bool:
+    def is_expired(self, now: float | None = None) -> bool:
         if not self.expires_at:
             return False
         now = now if now is not None else time.time()
@@ -182,13 +182,13 @@ class AgentResult:
     redacted: bool = False
     answer: str = ""
     schema_valid: bool = False
-    schema_error: Optional[str] = None
+    schema_error: str | None = None
     citation_valid: bool = False
     citation_errors: list[str] = field(default_factory=list)
     planned: list[PlanStep] = field(default_factory=list)
-    approval: Optional[ApprovalRecord] = None
+    approval: ApprovalRecord | None = None
     executed: bool = False
-    pending_action_id: Optional[str] = None
+    pending_action_id: str | None = None
     latencies_ms: dict[str, float] = field(default_factory=dict)
     tokens_total: int = 0
     tokens_prompt: int = 0

@@ -10,9 +10,8 @@ into the AgentResult so the metrics collector has real numbers.
 from __future__ import annotations
 
 import json
-import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from .config import get_settings
 from .db import Store, default_store
@@ -22,7 +21,7 @@ from .llm import LLMClient, LLMError
 from .models import AgentResult, EvidenceDoc
 from .notify import ConfirmationSender
 from .permission import ApprovalManager, PermissionDenied, PermissionLayer
-from .redact import PIIRedactor, build_redactor
+from .redact import build_redactor
 from .synthesize import Synthesizer
 from .tools import ToolRegistry, build_default_registry, is_high_stakes
 from .validate import CitationValidator, NoOpSchema, SchemaValidator
@@ -295,7 +294,7 @@ class GuardrailAgent:
             return
         try:
             self.store.log_injection_attempt(question, blocked=True)
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001, S110  best-effort telemetry
             pass
 
     def _log_injection(self, content: str, blocked: bool) -> None:
@@ -303,7 +302,7 @@ class GuardrailAgent:
             return
         try:
             self.store.log_injection_attempt(content, blocked=blocked)
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001, S110  best-effort telemetry
             pass
 
     def _persist_results(self, res: AgentResult) -> None:
@@ -326,7 +325,6 @@ class GuardrailAgent:
                 for n in sorted(set(parse_citations(answer))) if n in by_num]
 
     def _persist_pending_action(self, intent: Intent, approval) -> str:
-        import json
         plan = [{"action": s.action, "tool": s.tool, "subject": s.subject,
                  "rationale": s.rationale} for s in approval.plan]
         payload = {

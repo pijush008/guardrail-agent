@@ -99,7 +99,7 @@ def test_presidio_catches_unlisted_name(presidio_red):
 
 
 def test_presidio_keeps_product_terms(presidio_red):
-    out, found = presidio_red.redact(
+    out, _found = presidio_red.redact(
         "Project Phoenix — Q3 kickoff. Our goal is to ship the mobile beta "
         "by November 15. Date: 2026-08-02T16:35:12Z"
     )
@@ -110,7 +110,7 @@ def test_presidio_keeps_product_terms(presidio_red):
 
 
 def test_presidio_consistent_placeholders(presidio_red):
-    out, found = presidio_red.redact(
+    out, _found = presidio_red.redact(
         "From: Sofia Reyes <sofia.reyes@acmecorp.example>, call +1 415 555 0132"
     )
     assert "sofia.reyes@acmecorp.example" not in out
