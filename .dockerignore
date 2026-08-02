@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+tests/
+web/node_modules/
+web/.next/
+web/.git/
+.git/
+data/
+reports/
+*.md
