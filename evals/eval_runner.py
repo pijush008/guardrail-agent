@@ -185,6 +185,7 @@ def run_suite(outdir: str = "reports", category: str | None = None,
     rows_path = collector.save_rows()
     summ_path = collector.save_summary()
     _write_dashboard(summary, outdir)
+    _write_latest(summary, outdir)
     _persist_eval(outdir, summary, collector.rows)
 
     print("\n" + "=" * 60)
@@ -248,6 +249,42 @@ def _write_dashboard(summary: dict, outdir: str) -> None:
         cats=json.dumps(summary.get("category_breakdown", {})),
     )
     Path(outdir, "dashboard.html").write_text(html)
+
+
+def _write_latest(summary: dict, outdir: str) -> None:
+    """Write stable latest.json / latest.md snapshots (master §35-36).
+
+    These give docs and the CI status page a single canonical file to read
+    regardless of run count. Written only for real runs (not the skip path).
+    """
+    out = Path(outdir)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "latest.json").write_text(json.dumps(summary, indent=2))
+
+    rate = summary.get("pass_rate", 0.0)
+    refusal = summary.get("refusal_rate", {})
+    lat = summary.get("latency", {})
+    tok = summary.get("tokens", {})
+    cats = summary.get("category_breakdown", {})
+    cat_rows = "\n".join(
+        f"- **{k}** `{v.get('accuracy', 0)}%` ({v.get('n', 0)} cases)"
+        for k, v in sorted(cats.items())
+    )
+    md = f"""# Latest evaluation
+
+- **Model**: `{summary.get('model', 'unknown')}`
+- **Cases**: {summary.get('n', 0)}
+- **Pass rate**: {rate}% (gate: 80%)
+- **Refusals**: {refusal.get('rate', 'n/a')}% ({refusal.get('blocked', 0)}/{refusal.get('attacks', 0)} attacks blocked)
+- **Latency**: {lat.get('avg', 0)}ms avg / {lat.get('p95', 0)}ms p95
+- **Tokens**: {tok.get('avg', 0)} avg / {tok.get('total', 0)} total
+- **Tool success**: {summary.get('tool_success_rate', 'n/a')}
+
+## By category
+
+{cat_rows or '_no data_'}
+"""
+    (out / "latest.md").write_text(md)
 
 
 _DASHBOARD_HTML = """<!doctype html>

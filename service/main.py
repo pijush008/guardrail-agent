@@ -27,6 +27,7 @@ from pydantic import BaseModel
 from agent.agent import GuardrailAgent
 from agent.db import default_store
 from agent.llm import LLMClient
+from agent.logfmt import log_run
 from agent.models import AgentResult
 from agent.pdf import MAX_PDF_BYTES, PdfExtractionError, extract_pdf_text
 from agent.permission import ApprovalManager, PermissionDenied, PermissionLayer
@@ -127,6 +128,7 @@ def chat(req: ChatRequest):
         raise HTTPException(400, "question must not be empty")
     result = _agent.run(req.question, require_json=req.require_json,
                         expected_keys=req.expected_keys)
+    log_run(result, run_id=_agent.run_id)
     return _serialize(result)
 
 
@@ -156,6 +158,7 @@ def chat_upload(question: str = Form(...),
         documents = [{"source": f"PDF:{file.filename}", "content": text}]
 
     result = _agent.run(question, documents=documents)
+    log_run(result, run_id=_agent.run_id)
     return _serialize(result)
 
 
@@ -196,6 +199,7 @@ def agent_run(req: ChatRequest):
         raise HTTPException(400, "question must not be empty")
     result = _agent.run(req.question, require_json=req.require_json,
                         expected_keys=req.expected_keys)
+    log_run(result, run_id=_agent.run_id)
     payload = _serialize(result)
     payload["status"] = (
         "blocked" if result.blocked
