@@ -7,7 +7,12 @@ import { useAuth } from "@/lib/auth";
 const LINKS = [
   { href: "/", label: "Chat" },
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/evaluations", label: "Evaluations" },
+  { href: "/guardrails", label: "Guardrails" },
   { href: "/approvals", label: "Approvals" },
+  { href: "/runs", label: "Runs" },
+  { href: "/ci", label: "CI" },
+  { href: "/settings", label: "Settings" },
 ];
 
 export function Nav() {

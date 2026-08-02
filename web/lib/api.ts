@@ -64,12 +64,100 @@ export type EvalRun = {
   payload?: Record<string, unknown>;
 };
 
+export type EvalCase = {
+  id: string;
+  category: string;
+  input: string;
+  pass: string[];
+  attack: boolean;
+  expect_block: boolean;
+  approval_mode?: string;
+  require_json: boolean;
+};
+
+export type AgentRun = {
+  run_id: string;
+  question: string;
+  answer: string;
+  citations: { id: string; source: string }[];
+  evidence_count: number;
+  sources: string[];
+  created_at: string;
+};
+
+export type AgentRunDetail = AgentRun & {
+  evidence: { id: string; source: string; content_redacted?: string }[];
+  trace: { step: string; status: string; detail?: unknown }[];
+};
+
+export type GuardrailEvents = {
+  total: number;
+  blocked: number;
+  types: string[];
+  events: { id?: string; input?: string; blocked?: boolean; created_at?: string }[];
+};
+
+export type CiStatus =
+  | {
+      integration: "github";
+      workflow: string;
+      branch: string;
+      sha: string;
+      run_id: string;
+      status: string;
+    }
+  | { integration: "mock"; message: string; status: string };
+
+export type MetricsAggregate = {
+  latest?: EvalRun | null;
+  history?: EvalRun[];
+  totals?: Record<string, unknown>;
+  guardrails?: { injection_attempts?: number; injection_blocked?: number };
+  approvals?: { pending?: number };
+};
+
 export const api = {
   chat: (question: string) =>
     request<ChatResponse>("/api/v1/chat", {
       method: "POST",
       body: JSON.stringify({ question }),
     }),
+
+  agentRun: (question: string) =>
+    request<ChatResponse & { status?: string }>("/api/v1/agent/run", {
+      method: "POST",
+      body: JSON.stringify({ question }),
+    }),
+
+  agentRuns: (limit = 50) => request<AgentRun[]>(`/api/v1/agent/runs?limit=${limit}`),
+
+  agentRunDetail: (runId: string) =>
+    request<AgentRunDetail>(`/api/v1/agent/runs/${runId}`),
+
+  evalCases: () => request<EvalCase[]>("/api/v1/evaluations/cases"),
+
+  runEvaluations: (params?: { category?: string; limit?: number; min_pass?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.category) q.set("category", params.category);
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.min_pass) q.set("min_pass", String(params.min_pass));
+    const qs = q.toString();
+    return request<{ gate_passed: boolean; exit_code: number; summary: Record<string, unknown> }>(
+      `/api/v1/evaluations/run${qs ? `?${qs}` : ""}`,
+      { method: "POST", body: JSON.stringify({}) }
+    );
+  },
+
+  evalRuns: (limit = 50) => request<EvalRun[]>(`/api/v1/evaluations/runs?limit=${limit}`),
+
+  evalRunDetail: (id: string) => request<EvalRun & { cases?: unknown[] }>(`/api/v1/evaluations/runs/${id}`),
+
+  guardrailEvents: (limit = 50) =>
+    request<GuardrailEvents>(`/api/v1/guardrails/events?limit=${limit}`),
+
+  metricsAggregate: () => request<MetricsAggregate>("/api/v1/metrics"),
+
+  ciStatus: () => request<CiStatus>("/api/v1/ci/status"),
 
   chatWithFile: (question: string, file: File) => {
     const form = new FormData();
