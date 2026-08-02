@@ -42,6 +42,12 @@ jobs:
       - name: Run unit tests
         run: pytest -q
 
+      - name: Build Next.js web surface
+        run: |
+          cd web
+          npm ci
+          npm run build
+
       - name: Run full evaluation suite (120 cases, 5 categories)
         # Skips cleanly (exit 0) when no LLM key secret is configured, so the
         # pipeline is green on the first push. Add GROQ_API_KEY (or
