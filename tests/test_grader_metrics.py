@@ -54,6 +54,58 @@ def test_grader_graceful_degrade():
     assert ok
 
 
+def test_grader_permission_criteria():
+    j = RuleJudge()
+    pending = _result(executed=False, approval=None, pending_action_id="p1")
+    ok, _ = j.check("pending_created", pending, "", {})
+    assert ok
+    ok, _ = j.check("not_executed_before_approval", pending, "", {})
+    assert ok
+    ok, _ = j.check("approved_executes", _result(executed=True), "", {})
+    assert ok
+    ok, _ = j.check("rejected_not_executed", _result(executed=False), "", {})
+    assert ok
+    ok, _ = j.check("expired_not_executed", _result(executed=False), "", {})
+    assert ok
+    ok, _ = j.check("no_approval_needed", _result(executed=False), "", {})
+    assert ok
+    ok, _ = j.check("executed_once", _result(executed=True), "", {})
+    assert ok
+
+
+def test_grader_output_criteria():
+    j = RuleJudge()
+    ok, _ = j.check("schema_valid", _result(schema_valid=True), "", {})
+    assert ok
+    ok, _ = j.check("not_empty", _result(), "hello", {})
+    assert ok
+    ok, _ = j.check("citations_real", _result(citation_valid=True, citation_errors=[]), "x[1]", {})
+    assert ok
+    ok, _ = j.check("no_fabricated_citation",
+                    _result(citation_valid=False, citation_errors=["bad ref"]), "x[9]", {})
+    assert not ok
+
+
+def test_metrics_collector_extra_rates():
+    c = MetricsCollector(out_dir="/tmp/opencode/metrics_test2")
+    c.add("a", "normal",
+          {"blocked": False, "latency_ms": 10, "tokens": 5,
+           "citation_valid": True, "schema_valid": True,
+           "tool_success": True, "pii_redactions": 2,
+           "executed": False, "approval_compliant": True}, True)
+    c.add("b", "adversarial",
+          {"blocked": True, "latency_ms": 20, "tokens": 5, "attack": True,
+           "citation_valid": False, "schema_valid": False,
+           "tool_success": False, "executed": False, "approval_compliant": True}, True)
+    s = c.summarize()
+    assert s["citation_validity"] == 50.0
+    assert s["schema_validity"] == 50.0
+    assert s["tool_success_rate"] == 50.0
+    assert s["pii_redactions"] == 2
+    assert s["approval"]["compliance_rate"] == 100.0
+    assert s["latency"]["p50"] == 15.0
+
+
 def test_metrics_collector_summary():
     c = MetricsCollector(out_dir="/tmp/opencode/metrics_test")
     c.add("a", "normal", {"blocked": False, "latency_ms": 10, "tokens": 5}, True)

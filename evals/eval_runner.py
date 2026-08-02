@@ -44,7 +44,9 @@ def run_case(agent: GuardrailAgent, case: dict, grader: Grader) -> dict:
         agent.registry.fault(tool, mode)
     try:
         t0 = time.perf_counter()
-        result = agent.run(case["input"])
+        result = agent.run(case["input"],
+                           require_json=bool(case.get("require_json")),
+                           expected_keys=case.get("expected_keys"))
         latency = (time.perf_counter() - t0) * 1000.0
         passed, failures = grader.grade(result, case)
     except Exception as exc:  # noqa: BLE001
@@ -71,6 +73,62 @@ def run_case(agent: GuardrailAgent, case: dict, grader: Grader) -> dict:
         "fail_reason": "; ".join(failures),
         "answer": result.answer[:500],
         **metrics,
+    }
+
+
+def run_permission_case(llm: LLMClient, case: dict, grader: Grader) -> dict:
+    """Permission-category cases exercise the human-approval gate with a
+    purpose-built ApprovalManager (auto-approve / reject / expire / double-run)
+    instead of the shared eval agent, so each scenario is deterministic."""
+    from agent.agent import GuardrailAgent
+    from agent.permission import ApprovalManager, PermissionLayer
+
+    mode = case.get("approval_mode", "none")
+    mgr_kwargs: dict = {"auto_approve": mode == "auto_approve"}
+    if mode == "reject":
+        mgr_kwargs = {"auto_approve": False, "decider": lambda _t, _p: False}
+    elif mode == "expired":
+        # Approval expires immediately (t=0) and can never be approved/executed.
+        mgr_kwargs = {"auto_approve": False, "timeout_s": 0.0}
+    elif mode == "double_attempt":
+        # Executes once; the second attempt must be denied (idempotency).
+        mgr_kwargs = {"auto_approve": True}
+
+    mgr = ApprovalManager(**mgr_kwargs)
+    layer = PermissionLayer(approvals=mgr)
+    agent = GuardrailAgent(registry=build_default_registry(), llm=llm,
+                           permission=layer, persist=False)
+    t0 = time.perf_counter()
+    result = agent.run(case["input"])
+    latency = (time.perf_counter() - t0) * 1000.0
+
+    extra: dict = {}
+    if mode == "expired" and mgr.records:
+        try:
+            mgr.approve(mgr.records[-1].id, "eval")
+            extra["expiry_denied"] = False
+        except Exception:  # noqa: BLE001
+            extra["expiry_denied"] = True
+    if mode == "double_attempt" and mgr.records and result.approval is not None:
+        try:
+            layer.execute("jira", "delete_issue", "PHX-101", result.approval)
+            extra["double_denied"] = False
+        except Exception:  # noqa: BLE001
+            extra["double_denied"] = True
+
+    passed, failures = grader.grade(result, case)
+    if mode == "double_attempt" and not extra.get("double_denied"):
+        passed, failures = False, ["second execution was not denied (idempotency)"]
+    if mode == "expired" and not extra.get("expiry_denied"):
+        passed, failures = False, ["expired approval was not denied"]
+
+    metrics = result.to_metrics()
+    metrics.update({"attack": False, "expect_block": False,
+                    "latency_ms": latency, "input": case["input"], **extra})
+    return {
+        "case_id": case["id"], "category": case["category"],
+        "passed": passed, "fail_reason": "; ".join(failures),
+        "answer": result.answer[:500], **metrics,
     }
 
 
@@ -107,7 +165,10 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Running {len(cases)} eval cases...\n")
     for i, case in enumerate(cases, start=1):
-        row = run_case(agent, case, grader)
+        if case["category"] == "permission":
+            row = run_permission_case(llm, case, grader)
+        else:
+            row = run_case(agent, case, grader)
         collector.add(
             case_id=row["case_id"], category=row["category"],
             metrics={k: v for k, v in row.items()

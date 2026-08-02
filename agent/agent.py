@@ -197,6 +197,8 @@ class GuardrailAgent:
             redacted.append(self.redactor.redact_evidence(doc))
         res.evidence = redacted
         res.redacted = True
+        res.pii_redactions = sum(
+            len(d.metadata.get("pii_masked", [])) for d in redacted)
         res.latencies_ms["redact"] = (time.perf_counter() - t0) * 1000.0
 
         # [4] SYNTHESIS

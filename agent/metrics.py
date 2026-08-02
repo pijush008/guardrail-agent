@@ -45,6 +45,18 @@ class MetricsCollector:
             by_cat[cat] = {"n": len(cat_rows), "passed": cat_passed,
                            "pass_rate": 100.0 * cat_passed / len(cat_rows)}
 
+        def _rate(key: str) -> float | None:
+            vals = [r.get(key) for r in self.rows if key in r and r.get(key) is not None]
+            return round(100.0 * sum(1 for v in vals if v) / len(vals), 2) if vals else None
+
+        citation_validity = _rate("citation_valid")
+        schema_validity = _rate("schema_valid")
+        tool_success = _rate("tool_success")
+        executed = [r for r in self.rows if r.get("executed")]
+        pending_created = [r for r in self.rows if r.get("pending_created")]
+        approval_compliance = _rate("approval_compliant")
+        total_redactions = sum(r.get("pii_redactions", 0) for r in self.rows)
+
         return {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "n": total,
@@ -58,8 +70,18 @@ class MetricsCollector:
                 "blocked": adv_blocked,
                 "rate": round(100.0 * adv_blocked / adv_attacks, 2) if adv_attacks else None,
             },
+            "citation_validity": citation_validity,
+            "schema_validity": schema_validity,
+            "tool_success_rate": tool_success,
+            "pii_redactions": total_redactions,
+            "approval": {
+                "executed": len(executed),
+                "pending_created": len(pending_created),
+                "compliance_rate": approval_compliance,
+            },
             "latency": {
                 "avg": round(statistics.mean(latencies), 1),
+                "p50": round(_percentile(latencies, 50), 1),
                 "p95": round(_percentile(latencies, 95), 1),
                 "max": round(max(latencies), 1),
             },

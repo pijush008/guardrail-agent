@@ -194,6 +194,7 @@ class AgentResult:
     tokens_prompt: int = 0
     tokens_completion: int = 0
     n_llm_calls: int = 0
+    pii_redactions: int = 0
     degraded: list[str] = field(default_factory=list)
 
     @property
@@ -214,6 +215,13 @@ class AgentResult:
             "tokens_prompt": self.tokens_prompt,
             "tokens_completion": self.tokens_completion,
             "llm_calls": self.n_llm_calls,
+            "pii_redactions": self.pii_redactions,
+            "tool_success": not bool(self.degraded),
+            "pending_created": bool(self.pending_action_id)
+            or (self.approval is not None
+                and self.approval.status == "pending"),
+            "approval_compliant": not self.executed
+            or (self.approval is not None and self.approval.approved),
             "schema_valid": self.schema_valid,
             "citation_valid": self.citation_valid,
             "degraded": self.degraded,
