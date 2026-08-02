@@ -68,6 +68,9 @@ class Store:
     def list_eval_runs(self, limit: int = 50) -> list[dict]:
         raise NotImplementedError
 
+    def list_eval_cases(self, run_id: str, limit: int = 200) -> list[dict]:
+        raise NotImplementedError
+
     def list_table(self, table: str, limit: int = 50) -> list[dict]:
         raise NotImplementedError
 
@@ -197,6 +200,10 @@ class SupabaseStore(Store):
         return self._get("eval_runs", {"select": "*", "order": "created_at.desc",
                                        "limit": str(limit)})
 
+    def list_eval_cases(self, run_id: str, limit: int = 200) -> list[dict]:
+        return self._get("eval_cases", {
+            "select": "*", "run_id": f"eq.{run_id}", "limit": str(limit)})
+
     def list_table(self, table: str, limit: int = 50) -> list[dict]:
         return self._get(table, {"select": "*", "order": "created_at.desc",
                                  "limit": str(limit)})
@@ -319,6 +326,10 @@ class LocalStore(Store):
     def list_eval_runs(self, limit: int = 50) -> list[dict]:
         rows = sorted(self._rows["eval_runs"],
                       key=lambda r: r.get("created_at", ""), reverse=True)
+        return rows[:limit]
+
+    def list_eval_cases(self, run_id: str, limit: int = 200) -> list[dict]:
+        rows = [r for r in self._rows["eval_cases"] if r.get("run_id") == run_id]
         return rows[:limit]
 
     def list_table(self, table: str, limit: int = 50) -> list[dict]:

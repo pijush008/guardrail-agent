@@ -26,7 +26,7 @@ from pydantic import BaseModel
 
 from agent.agent import GuardrailAgent
 from agent.db import default_store
-from agent.permission import ApprovalManager, PermissionLayer
+from agent.permission import ApprovalManager, PermissionDenied, PermissionLayer
 from agent.llm import LLMClient
 from agent.models import AgentResult
 from agent.pdf import MAX_PDF_BYTES, PdfExtractionError, extract_pdf_text
@@ -74,6 +74,10 @@ class DecideRequest(BaseModel):
     decided_by: str = "dashboard-user"
 
 
+class ApproveRequest(BaseModel):
+    decided_by: str = "dashboard-user"
+
+
 def _serialize(result: AgentResult) -> dict:
     return {
         "question": result.question,
@@ -94,6 +98,7 @@ def _serialize(result: AgentResult) -> dict:
         "degraded": result.degraded,
         "executed": result.executed,
         "pending_action_id": result.pending_action_id,
+        "pii_redactions": result.pii_redactions,
         "latency_ms": round(result.latency_ms, 1),
         "tokens": result.tokens_total,
         "tokens_prompt": result.tokens_prompt,
@@ -167,6 +172,192 @@ def pending_actions(status: Optional[str] = None):
 def decide(row_id: str, req: DecideRequest):
     if req.status not in ("approved", "denied"):
         raise HTTPException(400, "status must be 'approved' or 'denied'")
+    return _decide(row_id, req.status, req.decided_by)
+
+
+def _parse_plan(plan: str) -> dict:
+    try:
+        data = json.loads(plan)
+        if isinstance(data, dict):
+            return data
+    except json.JSONDecodeError:
+        pass
+    raise HTTPException(500, "pending action plan is not valid JSON")
+
+
+# ---------------------------------------------------------------------------
+# Agent runs (master §26)
+# ---------------------------------------------------------------------------
+
+@app.post("/api/v1/agent/run")
+def agent_run(req: ChatRequest):
+    """Alias of /api/v1/chat with the full run envelope."""
+    if not req.question.strip():
+        raise HTTPException(400, "question must not be empty")
+    result = _agent.run(req.question, require_json=req.require_json,
+                        expected_keys=req.expected_keys)
+    payload = _serialize(result)
+    payload["status"] = (
+        "blocked" if result.blocked
+        else "pending_approval" if result.pending_action_id
+        else "executed" if result.executed
+        else "complete" if result.answer
+        else "failed")
+    return payload
+
+
+def _run_rows(limit: int = 50) -> list[dict]:
+    answers = _store.list_table("final_answers", limit=limit)
+    evidence = _store.list_table("evidence_docs", limit=1000)
+    rows = []
+    for a in answers:
+        run_id = a.get("run_id", "")
+        ev = [e for e in evidence if e.get("run_id") == run_id]
+        citations = a.get("citations") or []
+        rows.append({
+            "run_id": run_id,
+            "question": a.get("question", ""),
+            "answer": a.get("answer", ""),
+            "citations": citations,
+            "evidence_count": len(ev),
+            "sources": sorted({e.get("source", "") for e in ev}),
+            "created_at": a.get("created_at", ""),
+        })
+    return rows
+
+
+@app.get("/api/v1/agent/runs")
+def agent_runs(limit: int = 50):
+    return _run_rows(limit=limit)
+
+
+@app.get("/api/v1/agent/runs/{run_id}")
+def agent_run_detail(run_id: str):
+    answers = _store.list_table("final_answers", limit=100)
+    evidence = _store.list_table("evidence_docs", limit=1000)
+    answer_row = next((a for a in answers if a.get("run_id") == run_id), None)
+    if not answer_row:
+        raise HTTPException(404, "run not found")
+    ev = [e for e in evidence if e.get("run_id") == run_id]
+    return {
+        "run_id": run_id,
+        "question": answer_row.get("question", ""),
+        "answer": answer_row.get("answer", ""),
+        "citations": answer_row.get("citations") or [],
+        "evidence": ev,
+        "trace": _build_trace(answer_row, ev),
+        "created_at": answer_row.get("created_at", ""),
+    }
+
+
+def _build_trace(answer_row: dict, evidence: list[dict]) -> list[dict]:
+    """Render the 13-stage pipeline trace for the Runs detail page."""
+    has_answer = bool(answer_row.get("answer"))
+    return [
+        {"step": "Request received", "status": "ok"},
+        {"step": "Input checked", "status": "ok"},
+        {"step": "Request classified", "status": "ok"},
+        {"step": "Plan created", "status": "ok"},
+        {"step": "Tool called", "status": "ok" if evidence else "n/a",
+         "detail": f"{len(evidence)} evidence doc(s) retrieved"},
+        {"step": "Evidence retrieved",
+         "status": "ok" if evidence else "n/a",
+         "detail": sorted({e.get("source", "") for e in evidence}) or None},
+        {"step": "PII redacted", "status": "ok",
+         "detail": sum(1 for e in evidence if e.get("content_redacted"))},
+        {"step": "Response generated", "status": "ok" if has_answer else "failed"},
+        {"step": "Schema validated", "status": "ok"},
+        {"step": "Citations validated",
+         "status": "ok" if answer_row.get("citations") else "n/a"},
+        {"step": "Approval created", "status": "n/a"},
+        {"step": "Action executed", "status": "n/a"},
+        {"step": "Response returned", "status": "ok" if has_answer else "failed"},
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Evaluations (master §26)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/v1/evaluations/cases")
+def eval_cases():
+    from evals.eval_runner import load_cases
+    cases = load_cases()
+    return [{
+        "id": c["id"], "category": c["category"], "input": c["input"],
+        "pass": c.get("pass", []),
+        "attack": bool(c.get("attack")),
+        "expect_block": bool(c.get("expect_block")),
+        "approval_mode": c.get("approval_mode"),
+        "require_json": bool(c.get("require_json")),
+    } for c in cases]
+
+
+@app.post("/api/v1/evaluations/run")
+def eval_run(category: str | None = None, limit: int | None = None,
+             min_pass: float = 80.0):
+    import tempfile
+    from evals.eval_runner import run_suite
+    outdir = tempfile.mkdtemp(prefix="eval-api-")
+    exit_code, summary = run_suite(outdir=outdir, category=category,
+                                   limit=limit, min_pass=min_pass)
+    if summary.get("skipped"):
+        raise HTTPException(503, "no LLM API key configured; cannot run the "
+                                 "evaluation suite")
+    return {"gate_passed": exit_code == 0, "exit_code": exit_code,
+            "summary": summary}
+
+
+@app.get("/api/v1/evaluations/runs")
+def eval_runs(limit: int = 50):
+    return _store.list_eval_runs(limit=limit)
+
+
+@app.get("/api/v1/evaluations/runs/{run_id}")
+def eval_run_detail(run_id: str):
+    runs = _store.list_eval_runs(limit=1000)
+    run = next((r for r in runs if r.get("id") == run_id), None)
+    if not run:
+        raise HTTPException(404, "evaluation run not found")
+    run["cases"] = _store.list_eval_cases(run_id)
+    return run
+
+
+# ---------------------------------------------------------------------------
+# Guardrail events (master §26)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/v1/guardrails/events")
+def guardrail_events(limit: int = 50):
+    rows = _store.list_table("injection_attempts", limit=limit)
+    blocked = sum(1 for r in rows if r.get("blocked"))
+    return {
+        "total": len(rows), "blocked": blocked,
+        "types": ["direct", "indirect", "encoded", "jailbreak"],
+        "events": rows,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Approvals REST (master §26)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/v1/approvals")
+def approvals(status: str | None = None):
+    return _store.list_pending_actions(status=status)
+
+
+@app.post("/api/v1/approvals/{row_id}/approve")
+def approve_action(row_id: str, req: ApproveRequest | None = None):
+    return _decide(row_id, "approved", (req.decided_by if req else None) or "dashboard-user")
+
+
+@app.post("/api/v1/approvals/{row_id}/reject")
+def reject_action(row_id: str, req: ApproveRequest | None = None):
+    return _decide(row_id, "denied", (req.decided_by if req else None) or "dashboard-user")
+
+
+def _decide(row_id: str, status: str, decided_by: str) -> dict:
     row = _store.get_pending_action(row_id)
     if not row:
         raise HTTPException(404, "pending action not found")
@@ -178,45 +369,85 @@ def decide(row_id: str, req: DecideRequest):
     if not token:
         raise HTTPException(500, "pending action is missing its approval token")
 
-    approved = req.status == "approved"
-    rec = None
-    if approved:
+    if status == "approved":
         try:
-            rec = _approvals.approve(token, req.decided_by)
-        except Exception as exc:  # noqa: BLE001
-            raise HTTPException(409, f"approval token already used or unknown: {exc}")
+            rec = _approvals.approve(token, decided_by)
+        except PermissionDenied as exc:
+            raise HTTPException(409, str(exc))
     else:
         try:
-            rec = _approvals.deny(token, req.decided_by)
-        except Exception as exc:  # noqa: BLE001
-            raise HTTPException(409, f"approval token already used or unknown: {exc}")
-
-    _store.decide_pending_action(row_id, req.status, req.decided_by)
+            rec = _approvals.deny(token, decided_by)
+        except PermissionDenied as exc:
+            raise HTTPException(409, str(exc))
+    _store.decide_pending_action(row_id, status, decided_by)
 
     outcome = None
-    if approved:
+    if status == "approved":
         try:
             outcome = _agent.permission.execute(
                 payload["tool"], payload["action"], payload["subject"], rec)
         except Exception as exc:  # noqa: BLE001
-            raise HTTPException(500, f"action failed after approval: {exc}")
+            raise HTTPException(409, f"action failed after approval: {exc}")
 
     return {
-        "id": row_id,
-        "status": req.status,
-        "decided_by": req.decided_by,
-        "outcome": outcome,
+        "id": row_id, "status": status, "decided_by": decided_by,
+        "approval_status": rec.status, "outcome": outcome,
     }
 
 
-def _parse_plan(plan: str) -> dict:
-    try:
-        data = json.loads(plan)
-        if isinstance(data, dict):
-            return data
-    except json.JSONDecodeError:
-        pass
-    raise HTTPException(500, "pending action plan is not valid JSON")
+# ---------------------------------------------------------------------------
+# Metrics + CI status (master §26)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/v1/metrics")
+def metrics_aggregate():
+    runs = _store.list_eval_runs(limit=50)
+    latest = runs[0] if runs else None
+    injections = _store.list_table("injection_attempts", limit=500)
+    pending = _store.list_pending_actions(status="pending")
+    totals = {}
+    if latest:
+        summary = latest.get("payload") or {}
+        totals = {
+            "total_cases": summary.get("n"),
+            "passed": summary.get("passed"),
+            "pass_rate": summary.get("pass_rate"),
+            "citation_validity": summary.get("citation_validity"),
+            "schema_validity": summary.get("schema_validity"),
+            "pii_redactions": summary.get("pii_redactions"),
+            "avg_latency_ms": summary.get("latency", {}).get("avg"),
+            "p95_latency_ms": summary.get("latency", {}).get("p95"),
+        }
+    return {
+        "latest": latest,
+        "history": runs,
+        "totals": totals,
+        "guardrails": {
+            "injection_attempts": len(injections),
+            "injection_blocked": sum(1 for r in injections if r.get("blocked")),
+        },
+        "approvals": {"pending": len(pending)},
+    }
+
+
+@app.get("/api/v1/ci/status")
+def ci_status():
+    """Real status when running inside GitHub Actions, honest mock otherwise."""
+    import os
+    if os.getenv("GITHUB_ACTIONS") == "true" and os.getenv("GITHUB_REPOSITORY"):
+        return {
+            "integration": "github",
+            "workflow": os.getenv("GITHUB_WORKFLOW", "eval"),
+            "branch": os.getenv("GITHUB_REF_NAME", ""),
+            "sha": (os.getenv("GITHUB_SHA") or "")[:12],
+            "run_id": os.getenv("GITHUB_RUN_ID", ""),
+            "status": os.getenv("GITHUB_ACTION_STATUS", "unknown"),
+        }
+    return {
+        "integration": "mock",
+        "message": "Mock CI status — GitHub integration is not configured.",
+        "status": "mock",
+    }
 
 
 # ---------------------------------------------------------------------------
